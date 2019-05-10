@@ -1,0 +1,7 @@
+#Ignore data folder
+data/
+
+#Ignore data files
+*.csv
+*.xls
+*.xlsx
