@@ -5,3 +5,7 @@ data/
 *.csv
 *.xls
 *.xlsx
+
+#Ignore pictures
+*.png
+*.gif

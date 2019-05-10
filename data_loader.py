@@ -40,4 +40,5 @@ def data_loader(currency='EUR_USD',startDate='12/25/18',startTime='0000',endDate
 
     print(len(dataFile)/1440)
     return np.array(dataFile)
+    
 #
