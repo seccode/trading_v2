@@ -2,16 +2,14 @@
 Kalman Filter Strategy
 '''
 
-import csv
-import numpy as np
+import warnings
 import matplotlib.pyplot as plt
 from data_loader import data_loader
 from statsmodels.tsa.arima_model import ARIMA
 from sklearn.metrics import mean_squared_error
 from bayesianOpt import bayesian_optimisation
 from pykalman import KalmanFilter
-import pandas as pd
-import warnings
+import numpy as np
 
 def kelly(take,stop,prob):
     '''Kelly Criterion Formula'''
