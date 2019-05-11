@@ -105,7 +105,7 @@ class Trader():
             if len(matches) > 2:
 
 
-                fig = plt.subplots(figsize=(8,6))
+                fig, ax = plt.subplots(figsize=(8,6))
                 plt.subplot(211)
                 plt.plot(scaled,'k')
                 after = self.data[self.index:self.index+self.look_forward,3]
