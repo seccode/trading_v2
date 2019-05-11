@@ -59,6 +59,8 @@ class Trader():
         self.money = [10000]
         self.index = self.look_back
 
+        plt.ion()
+        plt.show()
         while self.index < self.data.shape[0]:
             current_ror = round(100 * (self.money[-1]/self.money[0] - 1),2)
             if current_ror < -20:
@@ -76,22 +78,58 @@ class Trader():
             separation = data_set - states_pred[:,0]
             model = ARIMA(separation,order=(5,1,0))
             model_fit = model.fit(disp=0,method='mle')
-            output = model_fit.forecast(5)
+            output = model_fit.forecast(5)[0]
 
             slope = states_pred[-1,0] - states_pred[-2,0]
-            projected_position = states_pred[-1,0] + 3*slope
-            dist = separation[-1] - output[0][0]
+            projected_position = states_pred[-1,0] + 10*slope
+            dist = separation[-1] - output[0]
 
             spread = self.data[self.index,6] - self.data[self.index,3]
-            if dist > .25*spread:
-                if data_set[-1]-dist > projected_position:
-                    # print("Short")
-                    self.short(self.max_time,self.take_mult*abs(dist),self.stop_mult*abs(dist))
 
-            elif dist < -.25*spread:
-                if data_set[-1]-dist < projected_position:
-                    # print("Long")
-                    self.long(self.max_time,self.take_mult*abs(dist),self.stop_mult*abs(dist))
+            area = np.sum(np.abs(separation[-5:]))
+            print(area)
+            if area < 3e-05:
+                if projected_position - states_pred[-1,0] > spread:
+                    print("Long")
+                    self.long(10,1,.0005)
+                    print(self.money[-1])
+                elif states_pred[-1,0] - projected_position > spread:
+                    print("Short")
+                    self.short(10,1,.0005)
+                    print(self.money[-1])
+
+
+
+            plt.close()
+            fig, ax = plt.subplots(figsize=(10,6))
+
+            plt.subplot(211)
+            plt.plot(data_set)
+            plt.plot(states_pred[:,0])
+            plt.plot([len(states_pred),len(states_pred)+10],[states_pred[-1,0]+spread,states_pred[-1,0]+spread],'orange')
+            plt.plot([len(states_pred),len(states_pred)+10],[states_pred[-1,0]-spread,states_pred[-1,0]-spread],'orange')
+            plt.scatter(len(states_pred)+10,projected_position)
+
+            plt.subplot(212)
+            plt.plot(separation)
+            plt.plot([0,len(separation)],[0,0])
+            # for x in range(len(separation),len(separation)+len(output)):
+            for p in range(len(output)):
+                plt.scatter(len(separation)+p,output[p])
+
+            plt.pause(.001)
+
+
+            # spread = self.data[self.index,6] - self.data[self.index,3]
+            # if dist > .25*spread:
+            #     if data_set[-1]-dist > projected_position:
+            #         # print("Short")
+            #         self.short(self.max_time,self.take_mult*abs(dist),self.stop_mult*abs(dist))
+            #
+            # elif dist < -.25*spread:
+            #     if data_set[-1]-dist < projected_position:
+            #         # print("Long")
+            #         self.long(self.max_time,self.take_mult*abs(dist),self.stop_mult*abs(dist))
 
             self.index += 1
 
@@ -99,7 +137,7 @@ class Trader():
 
 
 
-data = data_loader('EUR_USD','03/20/19','2100','03/21/19','2100')
+data = data_loader('EUR_USD','02/13/19','2100','02/14/19','2100')
 m = Trader(data)
 
 def backtest():
