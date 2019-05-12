@@ -106,7 +106,7 @@ class Trader():
                 p = pearsonr(scaled,self.hist_patterns[x][0])[0]
                 if p > self.sim_thresh1:
                     pcd = paired_cosine_distances([scaled],[self.hist_patterns[x][0]])[0]
-                    if pcd < self.sim_thresh2:
+                    if pcd > self.sim_thresh2:
                         v = levene(vol,self.hist_patterns[x][1])[0]
                         if v < self.sim_thresh3:
                             bc = braycurtis(scaled,self.hist_patterns[x][0])
@@ -121,7 +121,7 @@ class Trader():
 
 
             matches = np.array(matches)
-            if len(matches) > 3:
+            if len(matches) > 1:
 
                 fig, ax = plt.subplots(figsize=(8,6))
                 plt.subplot(211)
@@ -191,10 +191,10 @@ class Trader():
             self.index += 1
 
 
-data = data_loader('EUR_USD','01/08/19','2100','04/19/19','2100')
+data = data_loader('EUR_USD','03/08/19','2100','04/19/19','2100')
 m = Trader(data)
 
-parameters = [50,20,.93,.4,.25]
+parameters = [50,20,.93,.2,.4]
 m.trade(parameters)
 
 
