@@ -10,6 +10,7 @@ from scipy.spatial.distance import euclidean, braycurtis
 from data_loader import data_loader
 import matplotlib.pyplot as plt
 import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
 
 metrics = ['Pearson','Cosine','Volume','Bray Curtis','Euclidean']
 
@@ -22,6 +23,7 @@ def price_scale(a1):
 def kelly(take,stop,prob):
     '''Kelly Criterion Formula'''
     return (prob * (take/stop + 1) - 1) / (take/stop)
+
 
 
 class Trader():
@@ -84,10 +86,18 @@ class Trader():
         self.sim_thresh3 = round(parameters[4],5)
         self.money = [10000]
         self.index = int(.9*data.shape[0])
+        start_i = int(.9*data.shape[0])
         self.prepare_patterns()
+        curr_day = 1
 
         tracker = []
+        print('On day 1')
         while self.index < data.shape[0]:
+
+            if round((self.index - start_i) / 1440) > curr_day:
+                print('On day: {}'.format(round((self.index - start_i) / 1440)))
+                curr_day += 1
+
             # print(self.index)
             spread = self.data[self.index,6] - self.data[self.index,3]
             if spread > .0002:
@@ -105,23 +115,30 @@ class Trader():
 
                 p = pearsonr(scaled,self.hist_patterns[x][0])[0]
                 if p > self.sim_thresh1:
-                    pcd = paired_cosine_distances([scaled],[self.hist_patterns[x][0]])[0]
-                    if pcd > self.sim_thresh2:
+                    # pcd = paired_cosine_distances([scaled],[self.hist_patterns[x][0]])[0]
+                    cs = cosine_similarity([scaled,self.hist_patterns[x][0]])[0][1]
+                    # if pcd > self.sim_thresh2:
+                    if cs > self.sim_thresh2:
                         v = levene(vol,self.hist_patterns[x][1])[0]
                         if v < self.sim_thresh3:
                             bc = braycurtis(scaled,self.hist_patterns[x][0])
                             ec = euclidean(scaled,self.hist_patterns[x][0])
-                            # if self.hist_patterns[x][2] > self.hist_patterns[x][3]:
-                            #     tracker.append([p,pcd,v,bc,ec,max_outcome])
-                            # else:
-                            #     tracker.append([p,pcd,v,bc,ec,min_outcome])
-                            tracker.append([p,pcd,v,bc,ec,mean_outcome])
+                            if self.hist_patterns[x][2] > self.hist_patterns[x][3]:
+                                if mean_outcome > spread:
+                                    tracker.append([p,cs,v,bc,ec,1])
+                                else:
+                                    tracker.append([p,cs,v,bc,ec,0])
+                            else:
+                                if mean_outcome < -spread:
+                                    tracker.append([p,cs,v,bc,ec,1])
+                                else:
+                                    tracker.append([p,cs,v,bc,ec,0])
 
                             matches.append(self.hist_patterns[x])
 
 
             matches = np.array(matches)
-            if len(matches) > 1:
+            if len(matches) > 5:
 
                 fig, ax = plt.subplots(figsize=(8,6))
                 plt.subplot(211)
@@ -159,7 +176,7 @@ class Trader():
                 if np.median(outcomes) > 2*spread:
 
                     # self.long(self.look_forward,np.mean(outcomes),np.max([.0004,np.max(np.abs(matches[:,3]))]))
-                    self.long(self.look_forward,(np.median(outcomes)+spread)/2,np.max([.0004,np.max(np.abs(matches[:,3]))]))
+                    self.long(self.look_forward,(np.median(outcomes)+spread)/4,np.max([.0004,np.max(np.abs(matches[:,3]))]))
                     print('Long\n${}\n'.format(round(self.money[-1],2)))
                     fig.suptitle('Long_'+str(self.index)+' '+str(self.money[-1] - self.money[-2]))
                     plt.savefig('plots/Long_'+str(self.index)+'.png')
@@ -168,7 +185,7 @@ class Trader():
                 elif np.median(outcomes) < -2*spread:
 
                     # self.short(self.look_forward,-np.mean(outcomes),np.max([.0004,np.max(matches[:,2])]))
-                    self.short(self.look_forward,-(np.median(outcomes)+spread)/2,np.max([.0004,np.max(matches[:,2])]))
+                    self.short(self.look_forward,-(np.median(outcomes)+spread)/4,np.max([.0004,np.max(matches[:,2])]))
                     print('Short\n${}\n'.format(round(self.money[-1],2)))
                     fig.suptitle('Short_'+str(self.index)+' '+str(self.money[-1] - self.money[-2]))
                     plt.savefig('plots/Short_'+str(self.index)+'.png')
@@ -191,10 +208,10 @@ class Trader():
             self.index += 1
 
 
-data = data_loader('EUR_USD','03/08/19','2100','04/19/19','2100')
+data = data_loader('EUR_USD','02/06/19','2100','04/19/19','2100')
 m = Trader(data)
 
-parameters = [50,20,.93,.2,.4]
+parameters = [50,20,.7,.5,.4]
 m.trade(parameters)
 
 
