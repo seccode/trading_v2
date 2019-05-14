@@ -51,14 +51,14 @@ class Trader():
         stop_price = buy_price - stop
         end_index = np.min([data.shape[0],self.index+length])
         while self.index < end_index:
-            # if self.data[self.index,2] <= stop_price:
-            #     self.money.append(self.money[-1] + (self.money[-1] * -stop * .01 / stop))
-            #     return
+            if self.data[self.index,2] <= stop_price:
+                self.money.append(self.money[-1] + (self.money[-1] * -stop * .01 / stop))
+                return
             if self.data[self.index,1] > take_price:
                 self.money.append(self.money[-1] + (self.money[-1] * take * .01 / stop))
                 return
-            # if self.data[self.index,1] - stop_price > stop:
-            #     stop_price = self.data[self.index,1] - stop
+            if self.data[self.index,1] - stop_price > stop:
+                stop_price = self.data[self.index,1] - stop
             self.index += 1
         self.money.append(self.money[-1] + (self.money[-1] * (self.data[self.index,3] - buy_price) * .01 / stop))
 
@@ -68,14 +68,14 @@ class Trader():
         stop_price = sell_price + stop
         end_index = np.min([data.shape[0],self.index+length])
         while self.index < end_index:
-            # if self.data[self.index,4] >= stop_price:
-            #     self.money.append(self.money[-1] + (self.money[-1] * -stop * .01 / stop))
-            #     return
+            if self.data[self.index,4] >= stop_price:
+                self.money.append(self.money[-1] + (self.money[-1] * -stop * .01 / stop))
+                return
             if self.data[self.index,5] < take_price:
                 self.money.append(self.money[-1] + (self.money[-1] * take * .01 / stop))
                 return
-            # if stop_price - self.data[self.index,5] > stop:
-            #     stop_price = self.data[self.index,5] + stop
+            if stop_price - self.data[self.index,5] > stop:
+                stop_price = self.data[self.index,5] + stop
             self.index += 1
         self.money.append(self.money[-1] + (self.money[-1] * (sell_price - self.data[self.index,6]) * .01 / stop))
 
@@ -86,8 +86,8 @@ class Trader():
         self.sim_thresh2 = round(parameters[3],5)
         self.sim_thresh3 = round(parameters[4],5)
         self.money = [10000]
-        self.index = int(.9*data.shape[0])
-        start_i = int(.9*data.shape[0])
+        self.index = int(.7*data.shape[0])
+        start_i = int(.7*data.shape[0])
         self.prepare_patterns()
         curr_day = 1
 
@@ -136,7 +136,7 @@ class Trader():
 
 
             matches = np.array(matches)
-            if len(matches) > 4:
+            if len(matches) > 3:
 
                 fig, ax = plt.subplots(figsize=(8,6))
                 plt.subplot(211)
@@ -173,7 +173,7 @@ class Trader():
                 # plt.show()
                 if np.median(outcomes) > 2*spread:
 
-                    self.long(self.look_forward,(np.median(outcomes)+spread)/4,np.max([.0004,np.max(np.abs(matches[:,2]))]))
+                    self.long(self.look_forward,(np.median(outcomes)+spread)/4,np.max([.0005,np.max(np.abs(matches[:,2]))+.0002]))
                     print('Long\n${}\n'.format(round(self.money[-1],2)))
                     fig.suptitle('Long_'+str(self.index)+' '+str(self.money[-1] - self.money[-2]))
                     plt.savefig('plots/Long_'+str(self.index)+'.png')
@@ -181,7 +181,7 @@ class Trader():
 
                 elif np.median(outcomes) < -2*spread:
 
-                    self.short(self.look_forward,-(np.median(outcomes)+spread)/4,np.max([.0004,np.max(matches[:,2])]))
+                    self.short(self.look_forward,-(np.median(outcomes)+spread)/4,np.max([.0005,np.max(matches[:,2])+.0002]))
                     print('Short\n${}\n'.format(round(self.money[-1],2)))
                     fig.suptitle('Short_'+str(self.index)+' '+str(self.money[-1] - self.money[-2]))
                     plt.savefig('plots/Short_'+str(self.index)+'.png')
@@ -208,7 +208,7 @@ class Trader():
             self.index += 1
 
 
-data = data_loader('EUR_USD','02/06/19','2100','03/20/19','2100')
+data = data_loader('EUR_USD','02/06/19','2100','05/09/19','2100')
 m = Trader(data)
 
 parameters = [50,20,.95,.8,1]
