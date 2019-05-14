@@ -177,7 +177,7 @@ class Trader():
                     print('Long\n${}\n'.format(round(self.money[-1],2)))
                     fig.suptitle('Long_'+str(self.index)+' '+str(self.money[-1] - self.money[-2]))
                     plt.savefig('plots/Long_'+str(self.index)+'.png')
-                    plt.show()
+                    # plt.show()
 
                 elif np.median(outcomes) < -2*spread:
 
@@ -185,7 +185,7 @@ class Trader():
                     print('Short\n${}\n'.format(round(self.money[-1],2)))
                     fig.suptitle('Short_'+str(self.index)+' '+str(self.money[-1] - self.money[-2]))
                     plt.savefig('plots/Short_'+str(self.index)+'.png')
-                    plt.show()
+                    # plt.show()
                 else:
                     plt.close()
                     self.index += 1

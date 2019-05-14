@@ -1,14 +1,18 @@
-
 #include <iostream>
+#include <fstream>
+#include <string>
 using namespace std;
 
-int main() {
-
-  int n=0;
-  while (n < 20) {
-    cout << n << endl;
-    n += 1;
-  }
-
-  return 0;
+int main ()
+{
+  string STRING;
+	ifstream infile;
+	infile.open ("data.txt");
+        while(!infile.eof()) // To get you all the lines.
+        {
+	        getline(infile,STRING); // Saves the line in STRING.
+	        cout<<STRING<<endl; // Prints our STRING.
+        }
+	infile.close();
+	system ("pause");
 }

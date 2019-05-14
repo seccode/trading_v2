@@ -5,6 +5,7 @@ data/
 *.csv
 *.xls
 *.xlsx
+*.txt
 
 #Ignore pictures
 *.png
