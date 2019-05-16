@@ -114,7 +114,7 @@ class Trader():
         self.inductive_learner = inductive_learner
 
     def long(self,max,take,stop):
-        end_index = np.min([self.index+max,self.data.shape[0]])
+        end_index = np.min([self.index+max,self.data.shape[0]-1])
         buy_price = self.data[self.index,6]
         take_price = buy_price + take
         stop_price = buy_price - stop
@@ -129,7 +129,7 @@ class Trader():
         self.money.append(self.money[-1] + (self.money[-1] * .01 * (self.data[self.index,3] - buy_price)) / stop)
 
     def short(self,max,take,stop):
-        end_index = np.min([self.index+max,self.data.shape[0]])
+        end_index = np.min([self.index+max,self.data.shape[0]-1])
         sell_price = self.data[self.index,3]
         take_price = sell_price - take
         stop_price = sell_price + stop
@@ -152,7 +152,7 @@ class Trader():
 
         self.index = self.look_back
         self.money = [10000]
-        while self.index < self.data.shape[0]:
+        while self.index < self.data.shape[0] - self.look_forward:
             # print(self.index)
             if self.data[self.index,6] - self.data[self.index,3] > .0002:
                 self.index += self.look_forward
