@@ -167,27 +167,21 @@ class Trader():
             tracker = [[],[]]
             for j, pat in enumerate(self.bins[index]):
                 cs = cosine_similarity([current_pattern,pat])[0][1]
-                if cs > self.sim_thresh:
+                dist = dtw(current_pattern,pat)
+                if cs > self.sim_thresh and dist < .003:
                     match_pats.append(pat)
                     match_outs.append(self.outcomes[index][j])
-                    tracker[0].append(dtw(current_pattern,pat))
+                    tracker[0].append(dist)
                     tracker[1].append(match_outs[-1][-1])
             match_pats = np.array(match_pats)
             match_outs = np.array(match_outs)
 
-            if len(match_pats) > 7:
+            if len(match_pats) > self.match_num:
                 if np.abs(np.mean(match_outs[:,-1])) > spread*self.mult:
-
-                    if np.mean(match_outs[:,-1]) > 0:
-                        self.long(self.look_forward,np.mean(match_outs[:,-1]),np.max([-np.min(match_outs[:,-1]),.0005]))
-                    else:
-                        self.short(self.look_forward,-np.mean(match_outs[:,-1]),np.max([np.max(match_outs[:,-1]),.0005]))
-                    # print("Account Size: ${}".format(round(self.money[-1],2)))
-
-
+                    # fig, ax = plt.subplots(figsize=(9,6))
                     # plt.subplot(211)
                     # plt.plot(current_pattern,'k')
-                    # plt.plot(range(self.look_back,self.look_back+self.look_forward),price_scale(self.data[self.index:self.index+self.look_forward,3]),'k')
+                    # # plt.plot(range(self.look_back,self.look_back+self.look_forward),price_scale(self.data[self.index:self.index+self.look_forward,3]),'k')
                     # for x in range(len(match_pats)):
                     #     p = plt.plot(match_pats[x],alpha=.4)
                     #     plt.plot(range(self.look_back,self.look_back+self.look_forward),match_outs[x],c=p[0].get_color(),alpha=.4)
@@ -198,6 +192,21 @@ class Trader():
                     # plt.xlim(np.min(tracker[0]),np.max(tracker[0]))
                     # plt.ylim(np.min(tracker[1]),np.max(tracker[1]))
                     # plt.show()
+
+                    # d = input("Enter l for long or s for short\n")
+
+                    if np.mean(match_outs[:,-1]) > 0:
+                    # if d == 'l' or d == 's':
+                    #     t = float(input("Enter take profit\n"))
+                    #     s = float(input("Enter stop loss\n"))
+                    #     if d == 'l':
+                        self.long(self.look_forward,np.mean(match_outs[:,-1]),.0005)
+                    else:
+                        # else:
+                        self.short(self.look_forward,-np.mean(match_outs[:,-1]),.0005)
+                        # print("Account Size: ${}".format(round(self.money[-1],2)))
+                    # else:
+                        # self.index += self.look_forward
 
             self.index += 1
 
@@ -219,7 +228,7 @@ clf = RandomForestClassifier()
 inductive_learner = InductiveClusterer(clusterer, clf).fit(X)
 
 
-parameters = [.9]
+parameters = [.9,5,1]
 print("Trading...\n")
 m = Trader(test_data,bins,outcomes,inductive_learner)
 
