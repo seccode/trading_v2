@@ -28,11 +28,9 @@ def price_scale(a1):
     return np.array(vals)
 
 def plot_dendrogram(model, **kwargs):
-
     children = model.children_
     distance = np.arange(children.shape[0])
     no_of_observations = np.arange(2, children.shape[0]+2)
-
     linkage_matrix = np.column_stack([children, distance, no_of_observations]).astype(float)
     dendrogram(linkage_matrix, **kwargs)
 
@@ -41,7 +39,7 @@ def cluster(train_data,parameters):
     endings = []
     look_back = int(parameters[0])
     look_forward = int(parameters[1])
-    num_clusters = 100
+    num_clusters = 500
 
     i = look_back
     while i < train_data.shape[0] - look_forward:
@@ -51,19 +49,17 @@ def cluster(train_data,parameters):
         patterns.append(reverse_price_scale(train_data[i-look_back:i+1,3]))
         endings.append(price_scale(train_data[i:i+look_forward,3]))
         i += 1
-
     patterns = np.array(patterns)
     endings = np.array(endings)
 
-    bins = {k: [] for k in range(num_clusters)}
-    outcomes = {k: [] for k in range(num_clusters)}
-
     X = patterns
 
-    clusterer = AgglomerativeClustering(n_clusters=num_clusters,affinity='cosine',linkage='average')
+    clusterer = AgglomerativeClustering(n_clusters=num_clusters,affinity='cosine',alinkage='average')
     # clusterer = AgglomerativeClustering(n_clusters=num_clusters)
     clustering = clusterer.fit(X)
 
+    bins = {k: [] for k in range(len(clustering.labels_))}
+    outcomes = {k: [] for k in range(len(clustering.labels_))}
     previous_label = -1
     for j, pattern in enumerate(patterns):
         if clustering.labels_[j] == previous_label:
@@ -72,16 +68,18 @@ def cluster(train_data,parameters):
         outcomes[clustering.labels_[j]].append(endings[j])
         previous_label = clustering.labels_[j]
 
+    good_bins = []
     for key, value in bins.items():
         value = np.array(value)
         outcomes[key] = np.array(outcomes[key])
+        if len(value) > 3 and (np.max(outcomes[key][:,-1]) < 0 or np.min(outcomes[key][:,-1]) > 0):
+        # if len(value) > 4 and np.abs(np.median(outcomes[key][:,-1])) > .0003:
+            good_bins.append(key)
 
     # plt.title('Clustering Dendrogram')
     # plot_dendrogram(clustering,labels=clustering.labels_)
     # plt.show()
-
-    return bins, outcomes, clusterer, patterns
-
+    return bins, outcomes, clusterer, patterns, good_bins
 
 
 class InductiveClusterer(BaseEstimator):
@@ -105,13 +103,13 @@ class InductiveClusterer(BaseEstimator):
         return self.classifier_.decision_function(X)
 
 
-
 class Trader():
-    def __init__(self,data,bins,outcomes,inductive_learner):
+    def __init__(self,data,bins,outcomes,inductive_learner,good_bins):
         self.data = data
         self.bins = bins
         self.outcomes = outcomes
         self.inductive_learner = inductive_learner
+        self.good_bins = good_bins
 
     def long(self,max,take,stop):
         end_index = np.min([self.index+max,self.data.shape[0]-1])
@@ -160,53 +158,23 @@ class Trader():
 
             current_pattern = reverse_price_scale(self.data[self.index-self.look_back:self.index+1,3])
             spread = self.data[self.index,6] - self.data[self.index,3]
-            index = self.inductive_learner.predict(current_pattern.reshape(1,-1))[0]
+            bin_num = self.inductive_learner.predict(current_pattern.reshape(1,-1))[0]
+            if not bin_num in self.good_bins:
+                self.index += 1
+                continue
 
-            match_pats = []
-            match_outs = []
-            tracker = [[],[]]
-            for j, pat in enumerate(self.bins[index]):
-                cs = cosine_similarity([current_pattern,pat])[0][1]
-                dist = dtw(current_pattern,pat)
-                if cs > self.sim_thresh and dist < .003:
-                    match_pats.append(pat)
-                    match_outs.append(self.outcomes[index][j])
-                    tracker[0].append(dist)
-                    tracker[1].append(match_outs[-1][-1])
-            match_pats = np.array(match_pats)
-            match_outs = np.array(match_outs)
+            # plt.plot(current_pattern,'k')
+            # plt.plot(range(self.look_back,self.look_back+self.look_forward),price_scale(self.data[self.index:self.index+self.look_forward,3]),'k')
+            # for x in range(len(self.bins[bin_num])):
+            #     p = plt.plot(self.bins[bin_num][x],alpha=.4)
+            #     plt.plot(range(self.look_back,self.look_back+self.look_forward),self.outcomes[bin_num][x],c=p[0].get_color(),alpha=.4)
 
-            if len(match_pats) > self.match_num:
-                if np.abs(np.mean(match_outs[:,-1])) > spread*self.mult:
-                    # fig, ax = plt.subplots(figsize=(9,6))
-                    # plt.subplot(211)
-                    # plt.plot(current_pattern,'k')
-                    # # plt.plot(range(self.look_back,self.look_back+self.look_forward),price_scale(self.data[self.index:self.index+self.look_forward,3]),'k')
-                    # for x in range(len(match_pats)):
-                    #     p = plt.plot(match_pats[x],alpha=.4)
-                    #     plt.plot(range(self.look_back,self.look_back+self.look_forward),match_outs[x],c=p[0].get_color(),alpha=.4)
-                    # plt.subplot(212)
-                    # for x in range(len(tracker[0])):
-                    #     plt.scatter(tracker[0][x],tracker[1][x])
-                    # plt.plot(np.unique(tracker[0]), np.poly1d(np.polyfit(tracker[0], tracker[1], 1))(np.unique(tracker[0])))
-                    # plt.xlim(np.min(tracker[0]),np.max(tracker[0]))
-                    # plt.ylim(np.min(tracker[1]),np.max(tracker[1]))
-                    # plt.show()
-
-                    # d = input("Enter l for long or s for short\n")
-
-                    if np.mean(match_outs[:,-1]) > 0:
-                    # if d == 'l' or d == 's':
-                    #     t = float(input("Enter take profit\n"))
-                    #     s = float(input("Enter stop loss\n"))
-                    #     if d == 'l':
-                        self.long(self.look_forward,np.mean(match_outs[:,-1]),.0005)
-                    else:
-                        # else:
-                        self.short(self.look_forward,-np.mean(match_outs[:,-1]),.0005)
-                        # print("Account Size: ${}".format(round(self.money[-1],2)))
-                    # else:
-                        # self.index += self.look_forward
+            if np.mean(self.outcomes[bin_num][:,-1]) > spread:
+                self.long(self.look_forward,np.mean(self.outcomes[bin_num][:,-1]),-np.min(self.outcomes[bin_num])+3*spread)
+            elif np.mean(self.outcomes[bin_num][:,-1]) < -spread:
+                self.short(self.look_forward,-np.mean(self.outcomes[bin_num][:,-1]),np.max(self.outcomes[bin_num])+3*spread)
+            print("Account Size: ${}".format(round(self.money[-1],2)))
+            # plt.show()
 
             self.index += 1
 
@@ -215,27 +183,25 @@ class Trader():
 
 
 
-
-train_data, train_labels = data_loader('EUR_USD','01/22/19','2100','02/12/19','2100')
-test_data, test_labels = data_loader('EUR_USD','02/12/19','2100','02/18/19','2100')
-
+train_data, train_labels = data_loader('EUR_USD','07/03/18','2100','07/23/18','2100')
+test_data, test_labels = data_loader('EUR_USD','07/23/18','2100','07/30/18','2100')
 
 print("Clustering Patterns...\n")
-bins, outcomes, clusterer, X = cluster(train_data,[50,20])
+bins, outcomes, clusterer, X, good_bins = cluster(train_data,[50,20])
 
 print("Fitting Classifier...\n")
 clf = RandomForestClassifier()
 inductive_learner = InductiveClusterer(clusterer, clf).fit(X)
 
 
-parameters = [.9,5,1]
+parameters = [.1,5,1]
 print("Trading...\n")
-m = Trader(test_data,bins,outcomes,inductive_learner)
+m = Trader(test_data,bins,outcomes,inductive_learner,good_bins)
 
-bounds = np.array([[.7,.98], [2,12], [.5,5]])
-best_params = bayesian_optimisation(100,m.trade,bounds)
+# bounds = np.array([[.7,.98], [2,12], [.5,5]])
+# best_params = bayesian_optimisation(100,m.trade,bounds)
 
-# ROR = m.trade(parameters)
+ROR = m.trade(parameters)
 
 
 
