@@ -189,9 +189,9 @@ def bayesian_optimisation(n_iters, sample_loss, bounds, x0=None, n_pre_samples=5
             bestValues = next_sample
             bestScore = cv_score
             vals = []
-            vals.append(round(bestValues[0],2))
+            vals.append(int(bestValues[0]))
             vals.append(int(bestValues[1]))
-            vals.append(round(bestValues[2],2))
+            vals.append(int(bestValues[2]))
             # vals.append(int(bestValues[4]))
 
 

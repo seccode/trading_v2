@@ -54,8 +54,8 @@ def cluster(train_data,parameters):
 
     X = patterns
 
-    clusterer = AgglomerativeClustering(n_clusters=num_clusters,affinity='cosine',alinkage='average')
-    # clusterer = AgglomerativeClustering(n_clusters=num_clusters)
+    # clusterer = AgglomerativeClustering(n_clusters=num_clusters,affinity='cosine',linkage='average')
+    clusterer = AgglomerativeClustering(n_clusters=num_clusters)
     clustering = clusterer.fit(X)
 
     bins = {k: [] for k in range(len(clustering.labels_))}
@@ -73,7 +73,7 @@ def cluster(train_data,parameters):
         value = np.array(value)
         outcomes[key] = np.array(outcomes[key])
         if len(value) > 3 and (np.max(outcomes[key][:,-1]) < 0 or np.min(outcomes[key][:,-1]) > 0):
-        # if len(value) > 4 and np.abs(np.median(outcomes[key][:,-1])) > .0003:
+        # if len(value) > 3 and np.abs(np.median(outcomes[key][:,-1])) > .0002:
             good_bins.append(key)
 
     # plt.title('Clustering Dendrogram')
@@ -142,11 +142,8 @@ class Trader():
         self.money.append(self.money[-1] + (self.money[-1] * .01 * (sell_price - self.data[self.index,6])) / stop)
 
     def trade(self,parameters):
-        self.look_back = 50
-        self.look_forward = 20
-        self.sim_thresh = round(parameters[0],2)
-        self.match_num = int(parameters[1])
-        self.mult = round(parameters[2],2)
+        self.look_back = int(parameters[0])
+        self.look_forward = int(parameters[1])
 
         self.index = self.look_back
         self.money = [10000]
@@ -168,13 +165,13 @@ class Trader():
             # for x in range(len(self.bins[bin_num])):
             #     p = plt.plot(self.bins[bin_num][x],alpha=.4)
             #     plt.plot(range(self.look_back,self.look_back+self.look_forward),self.outcomes[bin_num][x],c=p[0].get_color(),alpha=.4)
+            # plt.show()
 
             if np.mean(self.outcomes[bin_num][:,-1]) > spread:
                 self.long(self.look_forward,np.mean(self.outcomes[bin_num][:,-1]),-np.min(self.outcomes[bin_num])+3*spread)
             elif np.mean(self.outcomes[bin_num][:,-1]) < -spread:
                 self.short(self.look_forward,-np.mean(self.outcomes[bin_num][:,-1]),np.max(self.outcomes[bin_num])+3*spread)
-            print("Account Size: ${}".format(round(self.money[-1],2)))
-            # plt.show()
+            # print("Account Size: ${}".format(round(self.money[-1],2)))
 
             self.index += 1
 
@@ -183,30 +180,42 @@ class Trader():
 
 
 
-train_data, train_labels = data_loader('EUR_USD','07/03/18','2100','07/23/18','2100')
+train_data, train_labels = data_loader('EUR_USD','07/02/18','2100','07/23/18','2100')
 test_data, test_labels = data_loader('EUR_USD','07/23/18','2100','07/30/18','2100')
+def optimize(parameters):
+    '''
+    Parameters:
+        * Bin numbers for clustering
+        * Look back length
+        * Look forward length
+    '''
+    bin_num = int(parameters[0])
+    look_back = int(parameters[1])
+    look_forward = int(parameters[2])
 
-print("Clustering Patterns...\n")
-bins, outcomes, clusterer, X, good_bins = cluster(train_data,[50,20])
+    print("Clustering Patterns...\n")
+    bins, outcomes, clusterer, X, good_bins = cluster(train_data,[look_back,look_forward])
 
-print("Fitting Classifier...\n")
-clf = RandomForestClassifier()
-inductive_learner = InductiveClusterer(clusterer, clf).fit(X)
-
-
-parameters = [.1,5,1]
-print("Trading...\n")
-m = Trader(test_data,bins,outcomes,inductive_learner,good_bins)
-
-# bounds = np.array([[.7,.98], [2,12], [.5,5]])
-# best_params = bayesian_optimisation(100,m.trade,bounds)
-
-ROR = m.trade(parameters)
-
-
+    print("Fitting Classifier...\n")
+    clf = RandomForestClassifier()
+    inductive_learner = InductiveClusterer(clusterer, clf).fit(X)
 
 
+    params = [look_back,look_forward]
+    print("Trading...\n")
+    m = Trader(test_data,bins,outcomes,inductive_learner,good_bins)
 
+    ROR = m.trade(params)
+    return ROR
+
+
+
+bounds = np.array([[100,1000], [20,120], [10,60]])
+best_params = bayesian_optimisation(100,optimize,bounds)
+print(best_params)
+
+
+# ROR = optimize([400,50,20])
 
 
 
