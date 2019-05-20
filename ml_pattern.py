@@ -180,8 +180,10 @@ class Trader():
 
 
 
-train_data, train_labels = data_loader('EUR_USD','07/02/18','2100','07/23/18','2100')
-test_data, test_labels = data_loader('EUR_USD','07/23/18','2100','07/30/18','2100')
+# train_data, train_labels = data_loader('EUR_USD','07/02/18','2100','07/23/18','2100')
+# test_data, test_labels = data_loader('EUR_USD','07/23/18','2100','07/30/18','2100')
+train_data, train_labels = data_loader('EUR_USD','01/28/19','2100','02/25/19','2100')
+test_data, test_labels = data_loader('EUR_USD','02/25/19','2100','03/04/19','2100')
 def optimize(parameters):
     '''
     Parameters:
@@ -193,16 +195,16 @@ def optimize(parameters):
     look_back = int(parameters[1])
     look_forward = int(parameters[2])
 
-    print("Clustering Patterns...\n")
+    # print("Clustering Patterns...\n")
     bins, outcomes, clusterer, X, good_bins = cluster(train_data,[look_back,look_forward])
 
-    print("Fitting Classifier...\n")
+    # print("Fitting Classifier...\n")
     clf = RandomForestClassifier()
     inductive_learner = InductiveClusterer(clusterer, clf).fit(X)
 
 
     params = [look_back,look_forward]
-    print("Trading...\n")
+    # print("Trading...\n")
     m = Trader(test_data,bins,outcomes,inductive_learner,good_bins)
 
     ROR = m.trade(params)
@@ -210,12 +212,13 @@ def optimize(parameters):
 
 
 
-bounds = np.array([[100,1000], [20,120], [10,60]])
+bounds = np.array([[100,2000], [20,120], [10,60]])
 best_params = bayesian_optimisation(100,optimize,bounds)
 print(best_params)
 
 
-# ROR = optimize([400,50,20])
+# ROR = optimize([1000,30,50])
+# print(ROR)
 
 
 
