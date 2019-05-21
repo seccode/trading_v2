@@ -195,20 +195,23 @@ def optimize(parameters):
     look_back = int(parameters[1])
     look_forward = int(parameters[2])
 
-    # print("Clustering Patterns...\n")
-    bins, outcomes, clusterer, X, good_bins = cluster(train_data,[look_back,look_forward])
+    tot = []
+    for x in range(3):
+        # print("Clustering Patterns...\n")
+        bins, outcomes, clusterer, X, good_bins = cluster(train_data,[look_back,look_forward])
 
-    # print("Fitting Classifier...\n")
-    clf = RandomForestClassifier()
-    inductive_learner = InductiveClusterer(clusterer, clf).fit(X)
+        # print("Fitting Classifier...\n")
+        clf = RandomForestClassifier()
+        inductive_learner = InductiveClusterer(clusterer, clf).fit(X)
 
 
-    params = [look_back,look_forward]
-    # print("Trading...\n")
-    m = Trader(test_data,bins,outcomes,inductive_learner,good_bins)
+        params = [look_back,look_forward]
+        # print("Trading...\n")
+        m = Trader(test_data,bins,outcomes,inductive_learner,good_bins)
 
-    ROR = m.trade(params)
-    return ROR
+        ROR = m.trade(params)
+        tot.append(ROR)
+    return round(np.mean(tot),2)
 
 
 
