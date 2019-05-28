@@ -171,36 +171,25 @@ def bayesian_optimisation(n_iters, sample_loss, bounds, x0=None, n_pre_samples=5
         if np.any(np.abs(next_sample - xp) <= epsilon):
             next_sample = np.random.uniform(bounds[:, 0], bounds[:, 1], bounds.shape[0])
 
-        # print("Next Sample: {}",format(next_sample))
-
         # Sample loss for new set of parameters
-        #print(next_sample)
         cv_score = sample_loss(next_sample)
         if n == 0:
             bestScore = cv_score
 
-        # scores.append(cv_score)
-        # plt.plot(scores)
-        # plt.savefig("Loss_Function2.png")
-        # plt.close()
         print(n)
         if cv_score >= bestScore:
-        # if cv_score < bestScore and cv_score > 0:
             bestValues = next_sample
             bestScore = cv_score
             vals = []
             vals.append(int(bestValues[0]))
             vals.append(int(bestValues[1]))
-            vals.append(int(bestValues[2]))
-            # vals.append(int(bestValues[4]))
-
+            vals.append(round(bestValues[2],5))
+            vals.append(round(bestValues[3],2))
+            vals.append(int(bestValues[4]))
 
             print('PARAMETERS: {}'.format(vals))
-            # print('PARAMETERS: {}'.format(bestValues))
             print('PERFORMANCE: {}'.format(bestScore))
-        #else:
-            #print('BEST PARAMETERS: {}'.format(bestValues))
-            #print('BEST SHARPE RATIO: {}'.format(bestScore))
+
         # Update lists
         x_list.append(next_sample)
         y_list.append(cv_score)
@@ -211,3 +200,14 @@ def bayesian_optimisation(n_iters, sample_loss, bounds, x0=None, n_pre_samples=5
 
     # print(bestValues)
     return bestValues
+
+
+
+
+
+
+
+
+
+
+#

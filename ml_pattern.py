@@ -54,8 +54,8 @@ def cluster(train_data,parameters):
 
     X = patterns
 
-    # clusterer = AgglomerativeClustering(n_clusters=num_clusters,affinity='cosine',linkage='average')
-    clusterer = AgglomerativeClustering(n_clusters=num_clusters)
+    clusterer = AgglomerativeClustering(n_clusters=num_clusters,affinity='cosine',linkage='complete')
+    # clusterer = AgglomerativeClustering(n_clusters=num_clusters)
     clustering = clusterer.fit(X)
 
     bins = {k: [] for k in range(len(clustering.labels_))}
@@ -72,13 +72,10 @@ def cluster(train_data,parameters):
     for key, value in bins.items():
         value = np.array(value)
         outcomes[key] = np.array(outcomes[key])
-        if len(value) > 3 and (np.max(outcomes[key][:,-1]) < 0 or np.min(outcomes[key][:,-1]) > 0):
-        # if len(value) > 3 and np.abs(np.median(outcomes[key][:,-1])) > .0002:
+        # if len(value) > 3 and (np.max(outcomes[key][:,-1]) < 0 or np.min(outcomes[key][:,-1]) > 0):
+        if len(value) > 3  and len(value) < 20 and (np.max(np.median(outcomes[key])) < 0 or np.min(np.median(outcomes[key])) > 0):
             good_bins.append(key)
 
-    # plt.title('Clustering Dendrogram')
-    # plot_dendrogram(clustering,labels=clustering.labels_)
-    # plt.show()
     return bins, outcomes, clusterer, patterns, good_bins
 
 
@@ -96,7 +93,8 @@ class InductiveClusterer(BaseEstimator):
 
     @if_delegate_has_method(delegate='classifier_')
     def predict(self, X):
-        return self.classifier_.predict(X)
+        # return self.classifier_.predict(X)
+        return self.classifier_.predict_proba(X)
 
     @if_delegate_has_method(delegate='classifier_')
     def decision_function(self, X):
@@ -155,23 +153,28 @@ class Trader():
 
             current_pattern = reverse_price_scale(self.data[self.index-self.look_back:self.index+1,3])
             spread = self.data[self.index,6] - self.data[self.index,3]
-            bin_num = self.inductive_learner.predict(current_pattern.reshape(1,-1))[0]
-            if not bin_num in self.good_bins:
+            bin_probs = self.inductive_learner.predict(current_pattern.reshape(1,-1))[0]
+            bin_nums = np.argsort(bin_probs)[::-1]
+            bin_num = bin_nums[0]
+
+            if not bin_num in self.good_bins or bin_probs[bin_num] < .1:
                 self.index += 1
                 continue
 
-            # plt.plot(current_pattern,'k')
+            plt.plot(current_pattern,'k')
             # plt.plot(range(self.look_back,self.look_back+self.look_forward),price_scale(self.data[self.index:self.index+self.look_forward,3]),'k')
-            # for x in range(len(self.bins[bin_num])):
-            #     p = plt.plot(self.bins[bin_num][x],alpha=.4)
-            #     plt.plot(range(self.look_back,self.look_back+self.look_forward),self.outcomes[bin_num][x],c=p[0].get_color(),alpha=.4)
-            # plt.show()
+            for x in range(len(self.bins[bin_num])):
+                p = plt.plot(self.bins[bin_num][x],alpha=.4)
+                plt.plot(range(self.look_back,self.look_back+self.look_forward),self.outcomes[bin_num][x],c=p[0].get_color(),alpha=.4)
+            plt.show()
 
-            if np.mean(self.outcomes[bin_num][:,-1]) > spread:
-                self.long(self.look_forward,np.mean(self.outcomes[bin_num][:,-1]),-np.min(self.outcomes[bin_num])+3*spread)
-            elif np.mean(self.outcomes[bin_num][:,-1]) < -spread:
-                self.short(self.look_forward,-np.mean(self.outcomes[bin_num][:,-1]),np.max(self.outcomes[bin_num])+3*spread)
-            # print("Account Size: ${}".format(round(self.money[-1],2)))
+            f = input("Enter t to continue\n")
+            if f == 't':
+                if np.mean(self.outcomes[bin_num][:,-1]) > spread:
+                    self.long(self.look_forward,np.mean(self.outcomes[bin_num][:,-1]),-np.min(self.outcomes[bin_num])+3*spread)
+                elif np.mean(self.outcomes[bin_num][:,-1]) < -spread:
+                    self.short(self.look_forward,-np.mean(self.outcomes[bin_num][:,-1]),np.max(self.outcomes[bin_num])+3*spread)
+                print("Account Size: ${}".format(round(self.money[-1],2)))
 
             self.index += 1
 
@@ -180,16 +183,14 @@ class Trader():
 
 
 
-# train_data, train_labels = data_loader('EUR_USD','07/02/18','2100','07/23/18','2100')
-# test_data, test_labels = data_loader('EUR_USD','07/23/18','2100','07/30/18','2100')
-train_data, train_labels = data_loader('EUR_USD','01/28/19','2100','02/25/19','2100')
-test_data, test_labels = data_loader('EUR_USD','02/25/19','2100','03/04/19','2100')
-def optimize(parameters):
+train_data, train_labels = data_loader('EUR_USD','01/03/19','2100','01/24/19','2100')
+test_data, test_labels = data_loader('EUR_USD','01/24/19','2100','01/29/19','2100')
+def test(parameters):
     '''
     Parameters:
-        * Bin numbers for clustering
-        * Look back length
-        * Look forward length
+        * 0: Bin numbers for clustering
+        * 1: Look back length
+        * 2: Look forward length
     '''
     bin_num = int(parameters[0])
     look_back = int(parameters[1])
@@ -197,16 +198,16 @@ def optimize(parameters):
 
     tot = []
     for x in range(3):
-        # print("Clustering Patterns...\n")
+        print("Clustering Patterns...\n")
         bins, outcomes, clusterer, X, good_bins = cluster(train_data,[look_back,look_forward])
 
-        # print("Fitting Classifier...\n")
+        print("Fitting Classifier...\n")
         clf = RandomForestClassifier()
         inductive_learner = InductiveClusterer(clusterer, clf).fit(X)
 
 
         params = [look_back,look_forward]
-        # print("Trading...\n")
+        print("Trading...\n")
         m = Trader(test_data,bins,outcomes,inductive_learner,good_bins)
 
         ROR = m.trade(params)
@@ -215,13 +216,13 @@ def optimize(parameters):
 
 
 
-bounds = np.array([[100,2000], [20,120], [10,60]])
-best_params = bayesian_optimisation(100,optimize,bounds)
-print(best_params)
+# bounds = np.array([[100,2000], [20,120], [10,60]])
+# best_params = bayesian_optimisation(500,test,bounds)
+# print(best_params)
 
 
-# ROR = optimize([1000,30,50])
-# print(ROR)
+ROR = test([450,60,60])
+print(ROR)
 
 
 
