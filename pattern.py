@@ -1,14 +1,12 @@
 
-import pandas as pd
+import time
+from numba import jit
 import matplotlib.pyplot as plt
 from bayesianOpt import bayesian_optimisation
 from sklearn.metrics.pairwise import cosine_similarity, euclidean_distances
 from data_loader import data_loader
 from scipy.stats import levene
 import numpy as np
-from numba import jit
-import time
-
 
 
 @jit(nopython=True,parallel=True)
@@ -19,7 +17,6 @@ def fast_reverse_price_scale(a1):
     for i in range(1,a1.shape[0]):
         vals[i] = a1[-i] - a1[-1]
     return vals[::-1]
-
 
 @jit(nopython=True,parallel=True)
 def fast_price_scale(a1):
@@ -75,12 +72,14 @@ class Trader():
         stop_price = buy_price - stop
         end_index = np.min([self.index+max_time,self.data.shape[0]])
         while self.index < end_index:
-            if self.data[self.index,2] <= stop_price:
+            if self.data[self.index,2] <= stop_price: # Stop Loss
                 self.money.append(self.money[-1] - self.money[-1] * .01)
                 return
-            if self.data[self.index,1] > take_price:
+            if self.data[self.index,1] > take_price: # Take Profit
                 self.money.append(self.money[-1] + self.money[-1] * .01 * take / stop)
                 return
+            # if self.data[self.index,1] - stop_price > stop: # Trailing Stop
+            #     stop_price = self.data[self.index,1] - stop
             self.index += 1
         self.money.append(self.money[-1] + self.money[-1] * .01 * (self.data[self.index,3] - buy_price) / stop)
 
@@ -91,12 +90,14 @@ class Trader():
         stop_price = sell_price + stop
         end_index = np.min([self.index+max_time,self.data.shape[0]])
         while self.index < end_index:
-            if self.data[self.index,4] >= stop_price:
+            if self.data[self.index,4] >= stop_price: # Stop Loss
                 self.money.append(self.money[-1] - self.money[-1] * .01)
                 return
-            if self.data[self.index,5] < take_price:
+            if self.data[self.index,5] < take_price: # Take Profit
                 self.money.append(self.money[-1] + self.money[-1] * .01 * take / stop)
                 return
+            # if stop_price - self.data[self.index,5] > stop: # Trailing Stop
+            #     stop_price = self.data[self.index,5] + stop
             self.index += 1
         self.money.append(self.money[-1] + self.money[-1] * .01 * (sell_price - self.data[self.index,6]) / stop)
 
@@ -127,10 +128,7 @@ class Trader():
 
             # Compare current pattern to stored patterns
             # cs = cosine_similarity(self.patterns,current_pattern.reshape(1,-1))
-            start = time.time()
-            #cs = euclidean_distances(self.patterns,current_pattern.reshape(1,-1))
             cs = fast_euclidean_distance(self.patterns,current_pattern.reshape(1,-1))
-            #cs = cs.reshape(-1,1)
             # Find indices where pattern similarity is high
             inds = np.where(cs < np.sort(cs.flatten())[40])[0]
             if inds.shape[0] < 4:
@@ -144,16 +142,18 @@ class Trader():
             # Remove duplicate patterns and patterns with non-matching volumes
             new_inds = []
             j = 0
-            while j < inds.shape[0] - self.look_back:
+            while j < inds.shape[0]:
                 if ((j == 0) or (j != 0 and inds[j] - inds[j-1] > self.look_back/2)) and \
-                    levene(current_volume,self.volumes[inds[j]])[1] > self.vol_thresh:
+                    levene(current_volume,self.volumes[inds[j]])[1] > self.vol_thresh and \
+                    (inds[j] + self.look_back) < self.patterns.shape[0]:
 
                     new_inds.append(inds[j])
                 j += 1
             inds = np.array(new_inds)
-
             # Plot patterns and open position if outcomes are good
             if inds.shape[0] > self.match_num and np.abs(np.median(self.outcomes[inds,-1])) > self.thresh:
+            # if inds.shape[0] > self.match_num and (np.max(self.outcomes[inds,-1]) < 0 or np.min(self.outcomes[inds,-1]) > 0):
+
                 # plt.plot(current_pattern,'k')
                 # plt.plot(range(self.look_back,self.look_back+self.look_forward),current_outcome,'k')
                 # for ind in inds:
@@ -165,7 +165,7 @@ class Trader():
                     self.long(self.look_forward,np.median(self.outcomes[inds,-1]),-np.min(self.outcomes[inds])+2*spread)
                 else:
                     self.short(self.look_forward,-np.median(self.outcomes[inds,-1]),np.max(self.outcomes[inds])+2*spread)
-                # print("Account Size: ${}".format(round(self.money[-1],2)))
+                print("Account Size: ${}".format(round(self.money[-1],2)))
 
             # Update patterns
             self.patterns = np.concatenate((self.patterns[1:,:],np.array([current_pattern])))
@@ -176,16 +176,16 @@ class Trader():
         return round(100 * (self.money[-1] / self.money[0] - 1),2)
 
 
-train_data, _ = data_loader('EUR_USD','01/02/19','2100','01/20/19','2100')
-test_data, _ = data_loader('EUR_USD','02/25/19','2100','02/26/19','2100')
+train_data, _ = data_loader('EUR_USD','09/24/18','2100','01/24/19','2100')
+test_data, _ = data_loader('EUR_USD','02/25/19','2100','04/15/19','2100')
 m = Trader(train_data,test_data)
 
-#bounds = np.array([ [30,120], [10,60], [.0001,.0015], [.01,.25], [1,15] ])
-#best_params = bayesian_optimisation(200,m.trade,bounds)
+bounds = np.array([ [30,120], [10,60], [.0001,.0015], [.01,.25], [1,15] ])
+best_params = bayesian_optimisation(200,m.trade,bounds)
 
-parameters = [71, 15, 0.00036, 0.07, 8]
-ror = m.trade(parameters)
-print("Rate of Return: {}%".format(ror))
+# parameters = [71, 15, 0.00036, 0.07, 8]
+# ror = m.trade(parameters)
+# print("Rate of Return: {}%".format(ror))
 
 
 
