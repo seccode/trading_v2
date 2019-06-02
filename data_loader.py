@@ -1,47 +1,22 @@
+'''
+This is the most beautiful function that has ever been written
+'''
+import datetime
+import pandas as pd
 
-import csv
-import numpy as np
+date_format_1 = '%Y-%m-%dT%H:%M:%S.000000000Z'  # Format in data file
+date_format_2 = '%m/%d/%Y-%H:%M:%S'             # Format entered by user
 
-def data_loader(currency='EUR_USD',startDate='12/25/18',startTime='0000',endDate='12/25/18',endTime='0000',all=False):
-    dataFile = []
-    labels = []
-    assemblyStarted = False
-    filename = 'data/clean_'+currency+'_data.csv'
+def data_loader(currency='EUR_USD',start='12/15/2019-02:09:15',end='12/15/2019-02:09:15',granularity='S5'):
+    # Do not pick days/times that are when market is closed
+    filename = 'data/'+granularity+'_clean_'+currency+'.csv'
 
-    with open(filename) as csvFile:
-        csv_reader = csv.reader(csvFile)
-        for row in csv_reader:
-            if not assemblyStarted:
-                if (startDate == row[0] and startTime == row[1]) or all:
-                    labels.append(row[0])
-                    dataFile.append(np.array([float(row[1]),
-                                            float(row[3]),
-                                            float(row[4]),
-                                            float(row[5]),
-                                            float(row[7]),
-                                            float(row[8]),
-                                            float(row[9]),
-                                            float(row[10])]))
-                    assemblyStarted = True
-            else:
-                if endDate == row[0] and endTime == row[1]:
-                    break
-                else:
-                    labels.append(row[0])
-                    dataFile.append(np.array([float(row[1]),
-                                            float(row[3]),
-                                            float(row[4]),
-                                            float(row[5]),
-                                            float(row[7]),
-                                            float(row[8]),
-                                            float(row[9]),
-                                            float(row[10])]))
+    # Load file into dataframe
+    df = pd.read_csv(filename,header=None,index_col=0,
+                    names=['datetime','time','bid_open','bid_high','bid_low','bid_close','ask_open','ask_high','ask_low','ask_close','volume'])
 
+    # Slice data according to start and end date
+    data_mat = df.loc[datetime.datetime.strptime(start,date_format_2).strftime(date_format_1):datetime.datetime.strptime(end,date_format_2).strftime(date_format_1),
+                    ['time','bid_high','bid_low','bid_close','ask_high','ask_low','ask_close','volume']].values
 
-    if len(dataFile) < 2:
-        print("Error making the data file")
-
-    print(len(dataFile)/1440)
-    return np.array(dataFile), np.array(labels)
-
-#
+    return data_mat

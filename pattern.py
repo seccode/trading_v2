@@ -8,8 +8,7 @@ from data_loader import data_loader
 from scipy.stats import levene
 import numpy as np
 
-
-@jit(nopython=True,parallel=True)
+@jit(nopython=True)
 def fast_reverse_price_scale(a1):
     # Assume a1 is np vector (n,)
     vals = np.zeros((a1.shape[0]))
@@ -18,7 +17,7 @@ def fast_reverse_price_scale(a1):
         vals[i] = a1[-i] - a1[-1]
     return vals[::-1]
 
-@jit(nopython=True,parallel=True)
+@jit(nopython=True)
 def fast_price_scale(a1):
     # Assume a1 is np vector (n,)
     vals = np.zeros((a1.shape[0]))
@@ -27,8 +26,7 @@ def fast_price_scale(a1):
         vals[i] = a1[i] - a1[0]
     return vals
 
-
-@jit(nopython=True,parallel=True)
+@jit(nopython=True)
 def fast_euclidean_distance(x,y):
     distance_vect = np.zeros((x.shape[0]))
     for i in range(x.shape[0]):
@@ -39,7 +37,21 @@ def fast_euclidean_distance(x,y):
         distance_vect[i] = np.sqrt(rolling_distance)
     return distance_vect # nx1
 
-@jit(nopython=True,parallel=True)
+@jit(nopython=True)
+def fast_cosine_similarity(x,y):
+    sim = np.zeros((x.shape[0]))
+    for i in range(x.shape[0]):
+        num = np.zeros((x.shape[1]))
+        denom_1 = np.zeros((x.shape[1]))
+        denom_2 = np.zeros((x.shape[1]))
+        for j in range(x.shape[1]):
+            num[j] = x[i,j]*y[0,j]
+            denom_1[j] = x[i,j]**2
+            denom_2[j] = y[0,j]**2
+        sim[i] = np.sum(num) / (np.sqrt(np.sum(denom_1))*np.sqrt(np.sum(denom_2)))
+    return sim
+
+@jit(nopython=True)
 def fast_make_patterns(train_data,look_back,look_forward):
     i = look_back
     patterns = np.zeros((train_data.shape[0] - look_forward-look_back,look_back+1))
@@ -53,17 +65,13 @@ def fast_make_patterns(train_data,look_back,look_forward):
     return patterns,outcomes,volumes
 
 class Trader():
-
     def __init__(self,train_data,test_data):
         self.train_data = train_data
         self.data = test_data
 
     def make_patterns(self):
         # Loop through training data and create stored patterns
-        start_time = time.time()
         self.patterns,self.outcomes,self.volumes = fast_make_patterns(self.train_data,self.look_back,self.look_forward)
-        print('Data took {}'.format(time.time()-start_time))
-
 
     def long(self,max_time,take,stop):
         # Long position
@@ -72,9 +80,9 @@ class Trader():
         stop_price = buy_price - stop
         end_index = np.min([self.index+max_time,self.data.shape[0]])
         while self.index < end_index:
-            if self.data[self.index,2] <= stop_price: # Stop Loss
-                self.money.append(self.money[-1] - self.money[-1] * .01)
-                return
+            # if self.data[self.index,2] <= stop_price: # Stop Loss
+            #     self.money.append(self.money[-1] - self.money[-1] * .01)
+            #     return
             if self.data[self.index,1] > take_price: # Take Profit
                 self.money.append(self.money[-1] + self.money[-1] * .01 * take / stop)
                 return
@@ -90,9 +98,9 @@ class Trader():
         stop_price = sell_price + stop
         end_index = np.min([self.index+max_time,self.data.shape[0]])
         while self.index < end_index:
-            if self.data[self.index,4] >= stop_price: # Stop Loss
-                self.money.append(self.money[-1] - self.money[-1] * .01)
-                return
+            # if self.data[self.index,4] >= stop_price: # Stop Loss
+            #     self.money.append(self.money[-1] - self.money[-1] * .01)
+            #     return
             if self.data[self.index,5] < take_price: # Take Profit
                 self.money.append(self.money[-1] + self.money[-1] * .01 * take / stop)
                 return
@@ -129,8 +137,11 @@ class Trader():
             # Compare current pattern to stored patterns
             # cs = cosine_similarity(self.patterns,current_pattern.reshape(1,-1))
             cs = fast_euclidean_distance(self.patterns,current_pattern.reshape(1,-1))
+            # cs = fast_cosine_similarity(self.patterns,current_pattern.reshape(1,-1))
+            # cs = cosine_similarity(self.patterns,current_pattern.reshape(1,-1))
             # Find indices where pattern similarity is high
-            inds = np.where(cs < np.sort(cs.flatten())[40])[0]
+            inds = np.where(cs < np.sort(cs.flatten())[20])[0]
+            # inds = np.where(cs < 3*np.std(current_pattern))[0]
             if inds.shape[0] < 4:
                 # Update patterns
                 self.patterns = np.concatenate((self.patterns[1:,:],np.array([current_pattern])))
@@ -151,15 +162,17 @@ class Trader():
                 j += 1
             inds = np.array(new_inds)
             # Plot patterns and open position if outcomes are good
-            if inds.shape[0] > self.match_num and np.abs(np.median(self.outcomes[inds,-1])) > self.thresh:
+            if inds.shape[0] > 0:
+            # if inds.shape[0] > self.match_num and np.abs(np.median(self.outcomes[inds,-1])) > self.thresh:
+            # if inds.shape[0] > self.match_num and np.abs(np.median(self.outcomes[inds,-1])) > spread:
             # if inds.shape[0] > self.match_num and (np.max(self.outcomes[inds,-1]) < 0 or np.min(self.outcomes[inds,-1]) > 0):
 
-                # plt.plot(current_pattern,'k')
-                # plt.plot(range(self.look_back,self.look_back+self.look_forward),current_outcome,'k')
-                # for ind in inds:
-                #     p = plt.plot(self.patterns[ind],alpha=.4)
-                #     plt.plot(range(self.look_back,self.look_back+self.look_forward),self.outcomes[ind],alpha=.4,c=p[0].get_color())
-                # plt.show()
+                plt.plot(current_pattern,'k')
+                plt.plot(range(self.look_back,self.look_back+self.look_forward),current_outcome,'k')
+                for ind in inds:
+                    p = plt.plot(self.patterns[ind],alpha=.4)
+                    plt.plot(range(self.look_back,self.look_back+self.look_forward),self.outcomes[ind],alpha=.4,c=p[0].get_color())
+                plt.show()
 
                 if np.median(self.outcomes[inds,-1]) > 0:
                     self.long(self.look_forward,np.median(self.outcomes[inds,-1]),-np.min(self.outcomes[inds])+2*spread)
@@ -176,18 +189,16 @@ class Trader():
         return round(100 * (self.money[-1] / self.money[0] - 1),2)
 
 
-train_data, _ = data_loader('EUR_USD','09/24/18','2100','01/24/19','2100')
-test_data, _ = data_loader('EUR_USD','02/25/19','2100','04/15/19','2100')
+train_data = data_loader('EUR_USD',start='04/25/2019-02:09:00',end='04/26/2019-02:09:00',granularity='M1')
+test_data = data_loader('EUR_USD',start='05/29/2019-02:09:00',end='06/15/2019-02:09:00',granularity='M1')
 m = Trader(train_data,test_data)
 
-bounds = np.array([ [30,120], [10,60], [.0001,.0015], [.01,.25], [1,15] ])
-best_params = bayesian_optimisation(200,m.trade,bounds)
+# bounds = np.array([ [30,120], [10,60], [.0001,.0015], [.01,.25], [1,15] ])
+# best_params = bayesian_optimisation(200,m.trade,bounds)
 
-# parameters = [71, 15, 0.00036, 0.07, 8]
-# ror = m.trade(parameters)
-# print("Rate of Return: {}%".format(ror))
-
-
+parameters = [200, 250, 0.00005, 0.04, 3]
+ror = m.trade(parameters)
+print("Rate of Return: {}%".format(ror))
 
 
 

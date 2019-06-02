@@ -190,16 +190,22 @@ tradeInterface = oanda_interface('101-001-8846728-001','bce4f5138dfcd1a12b028693
 # FIXED_POSITION_SIZE = 60000
 # tradeInterface = oanda_interface('101-001-8734770-001','badcf7760c1558e67da9dcc7144be117-e4dc07376ebb83f374fb3a7cb82725f6',environment='practice')
 
+print(tradeInterface.get_instrument_info('EUR_USD','M1',1))
+# info = tradeInterface.get_calendar_info('EUR_USD',1286400)
+# for item in info:
+    # print(item)
+    # print(item['title'],datetime.datetime.fromtimestamp(item['timestamp']).strftime('%Y-%m-%d %H:%M:%S'))
+
 RISK_VALUE = .01
 WAIT_TIME_SECONDS = 2
 
-currency = 'EUR_USD'
-parameters = [116, 34, 0.00059, 0.04, 5]
+# currency = 'EUR_USD'
+# parameters = [116, 34, 0.00059, 0.04, 5]
 
-train_data, _ = data_loader('EUR_USD','02/26/19','2100','02/25/19','2100')
+# train_data, _ = data_loader('EUR_USD','02/26/19','2100','02/25/19','2100')
 
-m = Trader(currency,train_data)
-m.trade(parameters)
+# m = Trader(currency,train_data)
+# m.trade(parameters)
 
 
 

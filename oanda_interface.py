@@ -1,6 +1,9 @@
+
+from datetime import datetime
 import json
 import oandapyV20
 import numpy as np
+import oandapyV20.endpoints.forexlabs as labs
 import oandapyV20.endpoints.orders as orders
 import oandapyV20.endpoints.accounts
 import oandapyV20.endpoints.trades as trades
@@ -219,6 +222,20 @@ class oanda_interface():
         r = trades.TradesList(accountID=self.account_id)
         self.API.request(r)
         print(r.response)
+
+    def get_calendar_info(self,instrument,length):
+        '''Gets historical calendar info about instrument'''
+        r = labs.Calendar(params={"instrument":instrument,"period":length})
+        self.API.request(r)
+        return r.response
+        
+
+
+
+
+
+
+
 
 
 if __name__ == '__main__':
