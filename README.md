@@ -1,1 +1,1 @@
-Only Expert Level code goes in here. Laying the foundations for God's 4th Temple
+Code for interfacing with OANDA's API to get data and execute trades, as well as severals scripts for processing data and making inferences.
